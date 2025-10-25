@@ -1,103 +1,196 @@
-# 🚀 Face Recognition Project
+# 🚀 Face Recognition System
 
-## 📋 Project Overview
-Hệ thống nhận diện khuôn mặt sử dụng ArcFace và InsightFace với các tính năng:
-- Ghi danh khuôn mặt từ webcam
-- Nhận diện real-time
-- Hỗ trợ RTSP stream
-- Giao diện trực quan
+## 📋 Introduction
+
+A face recognition system using InsightFace with the following features:
+- Face enrollment from webcam or images
+- Real-time recognition from webcam or RTSP stream
+- Detection of unknown faces
+- Embedding database with quality checking
+- Simple command-line interface
+- **NEW:** Performance optimization with ONNX Runtime
 
 ## 📁 Project Structure
+
 ```
 Face_Recognition/
-├── data_capture.py      # Ghi danh khuôn mặt từ webcam
-├── recognize.py         # Nhận diện real-time từ webcam
-├── recognize_rtsp.py    # Nhận diện từ RTSP stream
-├── data_video.py        # Xử lý video file
-├── check_embedding.py   # Kiểm tra database embeddings
-├── requirements.txt     # Dependencies
-├── README.md           # Hướng dẫn này
-├── .gitignore          # Git ignore file
-├── face_db/            # Thư mục chứa ảnh ghi danh
-└── embeddings_db.npz   # Database embeddings
+├── face_capture.py          # Capture and enroll faces
+├── face_extract.py          # Extract embeddings from images
+├── recognize.py             # Main recognition program
+├── recognize_optimized.py   # Recognition with optimized models
+├── face_recognition.py      # Enhanced recognition system
+├── check_embedding.py       # Check database quality
+├── optimize_onnx.py         # ONNX model optimization tool
+├── benchmark_compare.py     # Performance benchmark tool
+├── README.md                # This guide
+├── face_db/                 # Directory for face images
+├── optimized_models/        # Optimized ONNX models
+└── embeddings_db.h5         # Face database file
 ```
 
 ## 🔧 Installation
 
-### 1. Clone repository
+### 1. Requirements
 ```bash
-git clone https://github.com/BaekMinhDuc/Face_Recognition.git
-cd Face_Recognition
+pip install opencv-python numpy insightface h5py scikit-learn onnxruntime-gpu
 ```
 
-### 2. Create virtual environment (recommended)
+For TensorRT acceleration (optional):
 ```bash
-python3 -m venv .face
-source .face/bin/activate  # Linux/Mac
-# hoặc
-.face\Scripts\activate     # Windows
+pip install nvidia-tensorrt
 ```
 
-### 3. Install dependencies
-```bash
-pip install -r requirements.txt
-```
+### 2. Setup
+The InsightFace model will be automatically downloaded on first run.
 
-### 4. Download InsightFace models
-Models sẽ được tự động download lần đầu chạy, hoặc tải thủ công:
+### 3. Directory Structure
+Create a directory for storing face images:
 ```bash
-# Models sẽ được lưu trong ~/.insightface/
+mkdir -p face_db
 ```
 
 ## 🎯 Usage
 
-### 1. Ghi danh khuôn mặt mới
+### 1. Enroll Faces
 ```bash
-python3 data_capture.py
+python face_capture.py
 ```
-- Nhập tên người cần ghi danh
-- Chương trình sẽ chụp 20 mẫu tự động
-- Ảnh được lưu trong thư mục `face_db/`
+Enter the person's name when prompted. The system will capture multiple images of the face.
 
-### 2. Nhận diện real-time
+### 2. Process Face Images
 ```bash
-python3 recognize.py
+python face_extract.py
 ```
-- Sử dụng webcam để nhận diện
-- Hiển thị tên và confidence score
-- Nhấn 'q' để thoát
+Creates the database from face images in the `face_db` directory.
 
-### 3. Nhận diện từ RTSP stream
+### 3. Run Recognition
 ```bash
-python3 recognize_rtsp.py
+python recognize.py
 ```
-- Sửa RTSP URL trong code nếu cần
-- Hỗ trợ IP camera
+Arguments:
+- `--camera 0` - Select camera (default: 0)
+- `--threshold 0.4` - Recognition threshold
+- `--gpu 0` - GPU device ID
 
-### 4. Kiểm tra database
+### 4. RTSP Camera
 ```bash
-python3 check_embedding.py
-```
-- Hiển thị thông tin chi tiết về database
-- Kiểm tra chất lượng embeddings
-- Thống kê tổng quan
-
-## ⚙️ Configuration
-
-### Trong `recognize.py`:
-```python
-THRESHOLD = 0.4        # Ngưỡng nhận diện (0.0-1.0)
-GPU_ID = 0             # GPU ID (-1 cho CPU)
-SRC = 0                # Camera source
+python recognize.py --rtsp "rtsp://your-camera-url"
 ```
 
-### Trong `data_capture.py`:
-```python
-NUM_SAMPLES = 20       # Số mẫu thu thập
-CAPTURE_INTERVAL = 1   # Khoảng cách giữa các mẫu (giây)
+### 5. Check Database
+```bash
+python check_embedding.py
 ```
 
-## 🔍 Models Supported
+### 6. Optimize Models
+```bash
+# Optimize recognition model
+python optimize_onnx.py --model w600k_mbf
+
+# Optimize detection model
+python optimize_onnx.py --model det_500m
+```
+
+### 7. Run Recognition with Optimized Models
+```bash
+python recognize_optimized.py --rec-model optimized_models/w600k_mbf_optimized.onnx
+```
+
+### 8. Benchmark Performance
+```bash
+python benchmark_compare.py --original --optimized optimized_models/w600k_mbf_optimized.onnx --iterations 20 --warmup 5
+```
+
+## 🛠️ Tips
+
+### Recognition Threshold
+- `0.3` - More sensitive (may cause false positives)
+- `0.4` - Recommended default
+- `0.6` - Stricter recognition (reduces false matches)
+
+### Improving Accuracy
+- Collect 15-20 face samples per person
+- Include different lighting conditions
+- Vary face angles slightly
+- Use good quality cameras
+
+## 📊 Performance
+- **CPU**: 5-15 FPS
+- **GPU**: 20-30 FPS
+- **Optimized GPU**: 
+  - Original: ~600 FPS (inference only)
+  - ONNX Optimized: ~609 FPS (inference only)
+  - Full TensorRT (if available): Potentially higher performance
+
+## ⚠️ Notes
+- Good lighting improves accuracy
+- The InsightFace model downloads automatically on first run
+- For best results, update the database regularly
+- Optimized models require onnxruntime-gpu
+- TensorRT acceleration requires additional setup and compatible hardware
+
+## 🚀 Optimization Notes
+
+### ONNX Runtime Optimization
+The system supports running with optimized ONNX models that improve inference speed:
+- **Graph optimization**: Speeds up model by fusing operations and removing redundancies
+- **GPU acceleration**: Uses CUDA for faster execution
+- **Provider options**: Configures execution parameters for optimal performance
+
+### TensorRT Support
+For maximum performance with TensorRT:
+- Ensure TensorRT libraries are installed (`libnvinfer.so.10`)
+- Check CUDA compatibility with your GPU
+- Use the `--providers` flag to specify TensorRT providers:
+  ```bash
+  python recognize_optimized.py --providers TensorRT CUDA
+  ```
+
+### Troubleshooting
+If you encounter provider errors:
+```bash
+python recognize_optimized.py --providers CUDA CPUExecutionProvider
+```
+Hiển thị thông tin chi tiết về database embeddings.
+
+### 6. Sửa chữa database
+```bash
+python3 face_database_fix_duplicates.py
+```
+Kiểm tra và sửa chữa các vấn đề trong database như tên trùng lặp hoặc embedding có chất lượng kém.
+
+## ⚙️ Cấu hình
+
+Các thông số cấu hình có thể được điều chỉnh trong các file:
+
+### Cấu trúc thư mục
+- `FACE_DB_DIR`: Thư mục chứa ảnh khuôn mặt (mặc định: "face_db")
+- `DB_PATH`: Đường dẫn đến file database embeddings (mặc định: "embeddings_db.h5")
+
+### Tham số nhận diện
+- `THRESHOLD`: Ngưỡng nhận diện khuôn mặt (mặc định: 0.5)
+- `GPU_ID`: ID của GPU (mặc định: 0, -1 cho CPU)
+
+## 🔍 Mô hình được hỗ trợ
+
+Hệ thống sử dụng mô hình ArcFace từ InsightFace, cụ thể là mô hình "buffalo_s" với các đặc điểm:
+- Face Detection: SCRFD (SCR Face Detector)
+- Face Recognition: ArcFace với backbone ResNet
+- Độ chính xác cao với chi phí tính toán vừa phải
+
+## 📊 Hiệu năng
+
+Hiệu năng của hệ thống phụ thuộc vào phần cứng:
+- GPU: 20-30 FPS (NVIDIA GTX 1060 trở lên)
+- CPU: 5-10 FPS (Intel i5 8th gen trở lên)
+
+## 🤝 Đóng góp
+
+Mọi đóng góp đều được hoan nghênh! Vui lòng tạo issue hoặc pull request.
+
+## � Giấy phép
+
+Dự án này được phân phối dưới giấy phép MIT. Xem file LICENSE để biết thêm chi tiết.
 
 ### Buffalo Series (InsightFace):
 - `buffalo_l` - Độ chính xác cao nhất
