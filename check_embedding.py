@@ -3,7 +3,7 @@ import numpy as np
 import h5py
 from datetime import datetime
 
-DB_PATH = "embeddings_db.h5"
+DB_PATH = "db_embedding/embed_antelopev2.h5"
 
 def print_separator():
     print("=" * 80)
@@ -179,13 +179,7 @@ def check_h5_database():
             print(f"   👥 Số người: {len(names)}")
             print(f"   🔢 Tổng số mẫu: {total_samples}")
             print(f"   💾 Kích thước file: {os.path.getsize(DB_PATH) / 1024:.1f} KB")
-            
-            # Gợi ý
-            print("\n💡 GỢI Ý:")
-            print("  - Nếu quality = 'Suspicious', hãy ghi danh lại")
-            print("  - Nếu quality = 'Corrupted', hãy xóa và ghi danh lại")
-            print("  - Norm tốt nên trong khoảng 0.9 - 1.1")
-            print("  - Nhiều mẫu (>15) sẽ cho độ chính xác cao hơn")
+        
             
     except Exception as e:
         print(f"❌ Lỗi khi đọc database: {e}")

@@ -8,12 +8,12 @@ import onnxruntime as ort
 from insightface.app import FaceAnalysis
 from sklearn.metrics.pairwise import cosine_similarity
 
-DB_PATH = "db_embedding/embed_s.h5"
-THRESHOLD = 0.3
+DB_PATH = "db_embedding/embed_antelopev2.h5"
+THRESHOLD = 0.5
 GPU_ID = 0
 TITLE = "Face Recognition"
 DISPLAY_SIZE = (640, 480)
-MODEL_NAME = "buffalo_sc"
+MODEL_NAME = "antelopev2"
 ALLOWED_MODULES = ['detection', 'recognition']
 #ALLOWED_MODULES = None
 DET_SIZE = (640, 640)
@@ -40,6 +40,9 @@ class FaceRecognizer:
         print(f"[INFO] Model loaded in {model_load_time:.2f}s")
         
         self.load_database()
+        
+        self.total_detect_time = 0
+        self.total_recog_time = 0
         self.total_process_time = 0
         self.frame_processed = 0
 
@@ -68,10 +71,13 @@ class FaceRecognizer:
             return False
 
     def get_faces(self, frame):
+        detect_start = time.time()
         faces = self.face_app.get(frame)
-        return faces
+        detect_time = (time.time() - detect_start) * 1000
+        return faces, detect_time
 
     def identify_face(self, embedding):
+        recog_start = time.time()
         embedding = np.asarray(embedding, dtype=np.float32)
         embedding = embedding / (np.linalg.norm(embedding) + 1e-9)
         embedding = embedding.reshape(1, -1)
@@ -79,7 +85,8 @@ class FaceRecognizer:
         best_name = "Unknown"
         valid_avg_embeddings = [e for e in self.avg_embeddings if e is not None]
         if not valid_avg_embeddings:
-            return best_name, best_score
+            recog_time = (time.time() - recog_start) * 1000
+            return best_name, best_score, recog_time
         similarities = cosine_similarity(embedding, valid_avg_embeddings)[0]
         if len(similarities) > 0:
             best_idx = np.argmax(similarities)
@@ -88,16 +95,24 @@ class FaceRecognizer:
                 valid_names = [name for i, name in enumerate(self.names) if self.avg_embeddings[i] is not None]
                 if best_idx < len(valid_names):
                     best_name = valid_names[best_idx]
-        return best_name, best_score
+        recog_time = (time.time() - recog_start) * 1000
+        return best_name, best_score, recog_time
 
     def process_frame(self, frame):
         process_start = time.time()
-        faces = self.get_faces(frame)
+        
+        faces, detect_time = self.get_faces(frame)
+        self.total_detect_time += detect_time
+        
+        total_recog_time = 0
         has_unknown = False
+        
         for face in faces:
             bbox = face.bbox.astype(int)
             x1, y1, x2, y2 = bbox
-            name, score = self.identify_face(face.embedding)
+            name, score, recog_time = self.identify_face(face.embedding)
+            total_recog_time += recog_time
+            
             if name == "Unknown":
                 has_unknown = True
                 color = COLOR_UNKNOWN
@@ -109,11 +124,13 @@ class FaceRecognizer:
             cv2.rectangle(frame, (x1, y1 - text_size[1] - 10), (x1 + text_size[0], y1), color, -1)
             cv2.putText(frame, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.8, COLOR_TEXT, 2)
         
+        self.total_recog_time += total_recog_time
+        
         process_time = (time.time() - process_start) * 1000
         self.total_process_time += process_time
         self.frame_processed += 1
         
-        return frame, faces, has_unknown, process_time
+        return frame, faces, has_unknown, detect_time, total_recog_time, process_time
 
 def run_recognition(source=0, threshold=THRESHOLD, gpu_id=GPU_ID, rtsp_url=None, db_path=DB_PATH):
     recognizer = FaceRecognizer(db_path=db_path, threshold=threshold, gpu_id=gpu_id)
@@ -135,6 +152,7 @@ def run_recognition(source=0, threshold=THRESHOLD, gpu_id=GPU_ID, rtsp_url=None,
     fps_update_time = time.time()
     
     print("[INFO] Starting face recognition...")
+    print("[INFO] Press 'q' to quit\n")
     
     while True:
         ret, frame = cap.read()
@@ -157,7 +175,7 @@ def run_recognition(source=0, threshold=THRESHOLD, gpu_id=GPU_ID, rtsp_url=None,
             frame_count = 0
             fps_update_time = current_time
         
-        processed_frame, faces, has_unknown, process_time = recognizer.process_frame(frame)
+        processed_frame, faces, has_unknown, detect_time, recog_time, process_time = recognizer.process_frame(frame)
         
         if DISPLAY_SIZE:
             processed_frame = cv2.resize(processed_frame, DISPLAY_SIZE)
@@ -173,17 +191,29 @@ def run_recognition(source=0, threshold=THRESHOLD, gpu_id=GPU_ID, rtsp_url=None,
     cap.release()
     cv2.destroyAllWindows()
     
-    avg_process_time = recognizer.total_process_time / recognizer.frame_processed if recognizer.frame_processed > 0 else 0
-    print(f"[INFO] Average processing time: {avg_process_time:.2f}ms")
+    if recognizer.frame_processed > 0:
+        avg_detect_time = recognizer.total_detect_time / recognizer.frame_processed
+        avg_recog_time = recognizer.total_recog_time / recognizer.frame_processed
+        avg_process_time = recognizer.total_process_time / recognizer.frame_processed
+        
+        print(f"[INFO] Average detection time: {avg_detect_time:.2f}ms")
+        print(f"[INFO] Average recognition time: {avg_recog_time:.2f}ms")
+        print(f"[INFO] Average total processing time: {avg_process_time:.2f}ms")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Face Recognition")
-    parser.add_argument("--camera", type=int, default=0, help="Camera")
+    parser = argparse.ArgumentParser(description="Face Recognition System with Detailed Timing")
+    parser.add_argument("--camera", type=int, default=0, help="Camera index")
+    parser.add_argument("--threshold", type=float, default=THRESHOLD, help="Recognition threshold")
+    parser.add_argument("--gpu", type=int, default=GPU_ID, help="GPU ID")
     parser.add_argument("--rtsp", type=str, default=None, help="RTSP URL")
+    parser.add_argument("--db", type=str, default=DB_PATH, help="Database path")
     
     args = parser.parse_args()
     
     run_recognition(
         source=args.camera,
+        threshold=args.threshold,
+        gpu_id=args.gpu,
         rtsp_url=args.rtsp,
+        db_path=args.db
     )
