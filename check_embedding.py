@@ -3,7 +3,7 @@ import numpy as np
 import h5py
 from datetime import datetime
 
-DB_PATH = "db_embedding/embed_antelopev2.h5"
+DB_PATH = "db_embedding/embed_s.h5"
 
 def print_separator():
     print("=" * 80)
@@ -22,8 +22,7 @@ def analyze_embedding_quality(embedding):
         # Kiểm tra nếu embedding rỗng
         if embedding.size == 0:
             return {'quality': 'Empty', 'dims': (0,), 'error': 'Empty embedding'}
-        
-        # Tính toán các thông số
+
         norm = float(np.linalg.norm(embedding))
         mean_val = float(np.mean(embedding))
         std_val = float(np.std(embedding))

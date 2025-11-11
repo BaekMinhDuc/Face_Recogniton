@@ -1,8 +1,9 @@
 import cv2
 
-rtsp_url = "rtsp://192.168.1.102:554/user:hanet;pwd:hanet123"
+#rtsp_url = "rtsp://192.168.1.102:554/user:hanet;pwd:hanet123"
 
-cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+#cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+cap = cv2.VideoCapture(0)
 
 while True:
     ret, frame = cap.read()

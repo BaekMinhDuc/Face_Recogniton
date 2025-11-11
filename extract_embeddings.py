@@ -95,9 +95,7 @@ def save_database(db_path, data):
     print(f"[INFO] Total people: {len(data)}")
 
 def main():
-    print("=" * 60)
     print("Face Embedding Extraction System")
-    print("=" * 60)
     
     if not os.path.exists(FACE_DB_DIR):
         print(f"[ERROR] Face database directory not found: {FACE_DB_DIR}")
@@ -131,8 +129,6 @@ def main():
         print(f"[INFO] Total processing time: {total_time:.2f}s")
     else:
         print("[ERROR] No valid data to save")
-    
-    print("=" * 60)
 
 if __name__ == "__main__":
     main()
